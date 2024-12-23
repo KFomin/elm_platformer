@@ -3,19 +3,27 @@ module Main exposing (Model, Platform, Player, init)
 import Browser
 import Browser.Dom
 import Browser.Events as Browser
-import Html exposing (Html)
-import Html.Attributes exposing (tabindex)
+import Css
+import Html.Styled as Html
+import Html.Styled.Attributes as Attrs
 import Json.Decode as Decode
 import Task
 
 
+main : Program Flags Model Msg
 main =
-    Browser.element
-        { init = init
+    Browser.application
+        { init = \_ _ _ -> init
         , view = view
         , update = update
         , subscriptions = subscriptions
+        , onUrlChange = \_ -> NoOp
+        , onUrlRequest = \_ -> NoOp
         }
+
+
+type alias Flags =
+    {}
 
 
 type alias Player =
@@ -48,8 +56,8 @@ type alias Model =
     }
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
+init : ( Model, Cmd Msg )
+init =
     ( { player = { x = 5, y = 5, direction = Down }
       , platforms = [ { x = 0, y = 30, width = 200, height = 10 } ]
       , screenWidth = 0
@@ -183,20 +191,30 @@ decodeKey =
             )
 
 
-view : Model -> Html Msg
+view : Model -> Browser.Document Msg
 view model =
-    Html.div [ tabindex 0, Html.Attributes.style "overflow" "hidden" ]
-        [ viewPlayer model.player ]
+    { title = "Elm Platformer"
+    , body =
+        [ Html.toUnstyled <|
+            Html.div
+                [ Attrs.tabindex 0
+                , Attrs.css [ Css.overflow Css.hidden ]
+                ]
+                [ viewPlayer model.player ]
+        ]
+    }
 
 
-viewPlayer : Player -> Html msg
+viewPlayer : Player -> Html.Html Msg
 viewPlayer player =
     Html.div
-        [ Html.Attributes.style "position" "absolute"
-        , Html.Attributes.style "left" (String.fromFloat player.x ++ "px")
-        , Html.Attributes.style "top" (String.fromFloat player.y ++ "px")
-        , Html.Attributes.style "width" "20px"
-        , Html.Attributes.style "height" "20px"
-        , Html.Attributes.style "background" "blue"
+        [ Attrs.css
+            [ Css.position Css.absolute
+            , Css.left (Css.px player.x)
+            , Css.top (Css.px player.y)
+            , Css.width (Css.px 20)
+            , Css.height (Css.px 20)
+            , Css.backgroundColor (Css.hex "#0000FF")
+            ]
         ]
         []
