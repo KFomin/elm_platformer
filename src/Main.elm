@@ -8,6 +8,7 @@ import Html.Styled as Html
 import Html.Styled.Attributes as Attrs
 import Json.Decode as Decode
 import Task
+import Time
 
 
 main : Program Flags Model Msg
@@ -29,6 +30,8 @@ type alias Flags =
 type alias Player =
     { x : Float
     , y : Float
+    , width : Float
+    , height : Float
     , direction : Direction
     }
 
@@ -58,8 +61,8 @@ type alias Model =
 
 init : ( Model, Cmd Msg )
 init =
-    ( { player = { x = 5, y = 5, direction = Down }
-      , platforms = [ { x = 0, y = 30, width = 200, height = 10 } ]
+    ( { player = { x = 5, y = 5, width = 20, height = 20, direction = Down }
+      , platforms = [ { x = 0, y = 500, width = 1000, height = 25 } ]
       , screenWidth = 0
       , screenHeight = 0
       }
@@ -72,6 +75,7 @@ subscriptions _ =
     Sub.batch
         [ Browser.onKeyDown decodeKey
         , Browser.onResize UpdateScreenWidth
+        , Time.every 100 (\_ -> MoveDown)
         ]
 
 
@@ -94,7 +98,7 @@ update msg model =
                 movePlayerLeft player =
                     { player
                         | x =
-                            if model.player.x - 15 == 0 then
+                            if model.player.x - 5 == 0 then
                                 model.player.x
 
                             else
@@ -109,7 +113,7 @@ update msg model =
                 movePlayerRight player =
                     { player
                         | x =
-                            if model.player.x + 5 >= model.screenWidth - 55 then
+                            if model.player.x + 5 >= model.screenWidth - 5 then
                                 model.player.x
 
                             else
@@ -124,7 +128,7 @@ update msg model =
                 movePlayerUp player =
                     { player
                         | y =
-                            if model.player.y - 15 == 0 then
+                            if model.player.y - 5 == 0 then
                                 model.player.y
 
                             else
@@ -139,14 +143,32 @@ update msg model =
                 movePlayerDown player =
                     { player
                         | y =
-                            if model.player.y + 5 >= model.screenHeight - 55 then
+                            if model.player.y + 5 >= model.screenHeight - 5 then
                                 model.player.y
 
                             else
                                 model.player.y + 5
                     }
+
+                cantMoveDown =
+                    model.platforms
+                        |> List.any
+                            (\platform ->
+                                ((model.player.x < (platform.x + platform.width))
+                                    && ((model.player.x + model.player.width) > platform.x)
+                                )
+                                    && ((model.player.y < (platform.y + platform.height))
+                                            && ((model.player.y + model.player.height) > platform.y)
+                                       )
+                            )
             in
-            ( { model | player = movePlayerDown model.player }, Cmd.none )
+            if cantMoveDown then
+                ( model, Cmd.none )
+
+            else
+                ( { model | player = movePlayerDown model.player }
+                , Cmd.none
+                )
 
         NoOp ->
             ( model, Cmd.none )
@@ -200,9 +222,21 @@ view model =
                 [ Attrs.tabindex 0
                 , Attrs.css [ Css.overflow Css.hidden ]
                 ]
-                [ viewPlayer model.player ]
+                [ viewAir model
+                ]
         ]
     }
+
+
+viewAir : Model -> Html.Html Msg
+viewAir model =
+    Html.div [ Attrs.id "platformer-air" ]
+        ([ viewPlayer model.player
+         ]
+            ++ (model.platforms
+                    |> List.map viewPlatform
+               )
+        )
 
 
 viewPlayer : Player -> Html.Html Msg
@@ -212,9 +246,26 @@ viewPlayer player =
             [ Css.position Css.absolute
             , Css.left (Css.px player.x)
             , Css.top (Css.px player.y)
-            , Css.width (Css.px 20)
-            , Css.height (Css.px 20)
+            , Css.width (Css.px player.width)
+            , Css.height (Css.px player.height)
             , Css.backgroundColor (Css.hex "#0000FF")
             ]
+        , Attrs.id "platformer-player"
+        ]
+        []
+
+
+viewPlatform : Platform -> Html.Html Msg
+viewPlatform platform =
+    Html.div
+        [ Attrs.css
+            [ Css.width (Css.px platform.width)
+            , Css.height (Css.px platform.height)
+            , Css.top (Css.px platform.y)
+            , Css.left (Css.px platform.x)
+            , Css.backgroundColor (Css.hex "#000000")
+            , Css.position Css.absolute
+            ]
+        , Attrs.id "platformer-platform"
         ]
         []
