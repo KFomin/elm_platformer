@@ -28,41 +28,46 @@ type alias Flags =
 
 
 type alias Player =
-    { x : Float
-    , y : Float
-    , width : Float
-    , height : Float
-    , direction : Direction
+    { x : Int
+    , y : Int
+    , width : Int
+    , height : Int
+    , speed : Speed
     }
 
 
-type Direction
-    = Up
-    | Down
-    | Right
-    | Left
+type Speed
+    = Zero
+    | One
+    | Two
+    | Three
+    | Four
+    | Five
+    | Six
+    | Seven
+    | Eight
 
 
 type alias Platform =
-    { x : Float
-    , y : Float
-    , width : Float
-    , height : Float
+    { x : Int
+    , y : Int
+    , width : Int
+    , height : Int
     }
 
 
 type alias Model =
     { player : Player
     , platforms : List Platform
-    , screenWidth : Float
-    , screenHeight : Float
+    , screenWidth : Int
+    , screenHeight : Int
     }
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( { player = { x = 5, y = 5, width = 20, height = 20, direction = Down }
-      , platforms = [ { x = 0, y = 500, width = 1000, height = 25 } ]
+    ( { player = { x = 0, y = 0, width = 20, height = 20, speed = One }
+      , platforms = [ { x = 0, y = 500, width = 1200, height = 20 } ]
       , screenWidth = 0
       , screenHeight = 0
       }
@@ -71,11 +76,15 @@ init =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
+subscriptions { player, platforms } =
     Sub.batch
-        [ Browser.onKeyDown decodeKey
+        [ Browser.onKeyDown (decodeKey player)
         , Browser.onResize UpdateScreenWidth
-        , Time.every 100 (\_ -> MoveDown)
+        , if player.speed == Zero then
+            Sub.none
+
+          else
+            Time.every 50 (\_ -> MoveDown player)
         ]
 
 
@@ -83,7 +92,7 @@ type Msg
     = MoveLeft
     | MoveRight
     | MoveUp
-    | MoveDown
+    | MoveDown Player
     | NoOp
     | GotViewPort Browser.Dom.Viewport
     | UpdateScreenWidth Int Int
@@ -137,61 +146,62 @@ update msg model =
             in
             ( { model | player = movePlayerUp model.player }, Cmd.none )
 
-        MoveDown ->
+        MoveDown player ->
             let
-                movePlayerDown : Player -> Player
-                movePlayerDown player =
-                    { player
-                        | y =
-                            if model.player.y + 5 >= model.screenHeight - 5 then
-                                model.player.y
-
-                            else
-                                model.player.y + 5
-                    }
-
-                cantMoveDown =
+                theYCoordinateToStop : Maybe Int
+                theYCoordinateToStop =
                     model.platforms
-                        |> List.any
+                        |> List.filter
                             (\platform ->
-                                ((model.player.x < (platform.x + platform.width))
-                                    && ((model.player.x + model.player.width) > platform.x)
+                                ((player.x < (platform.x + platform.width))
+                                    && ((player.x + player.width) > platform.x)
                                 )
-                                    && ((model.player.y < (platform.y + platform.height))
-                                            && ((model.player.y + model.player.height) > platform.y)
-                                       )
+                                    && ((player.y + moveBySpeed player.speed) > (platform.y - platform.height))
+                            )
+                        |> List.head
+                        |> Maybe.map
+                            (\platform ->
+                                platform.y - platform.height
                             )
             in
-            if cantMoveDown then
-                ( model, Cmd.none )
-
-            else
-                ( { model | player = movePlayerDown model.player }
-                , Cmd.none
-                )
+            theYCoordinateToStop
+                |> Maybe.map
+                    (\y ->
+                        ( { model | player = { player | y = y, speed = Zero } }, Cmd.none )
+                    )
+                |> Maybe.withDefault
+                    ( { model
+                        | player =
+                            { player
+                                | y = player.y + moveBySpeed player.speed
+                                , speed = increaseSpeed player.speed
+                            }
+                      }
+                    , Cmd.none
+                    )
 
         NoOp ->
             ( model, Cmd.none )
 
         GotViewPort viewPort ->
             ( { model
-                | screenWidth = viewPort.viewport.width
-                , screenHeight = viewPort.viewport.height
+                | screenWidth = viewPort.viewport.width |> round
+                , screenHeight = viewPort.viewport.height |> round
               }
             , Cmd.none
             )
 
         UpdateScreenWidth width height ->
             ( { model
-                | screenWidth = width |> toFloat
-                , screenHeight = height |> toFloat
+                | screenWidth = width
+                , screenHeight = height
               }
             , Cmd.none
             )
 
 
-decodeKey : Decode.Decoder Msg
-decodeKey =
+decodeKey : Player -> Decode.Decoder Msg
+decodeKey player =
     Decode.field "key" Decode.string
         |> Decode.andThen
             (\key ->
@@ -206,11 +216,73 @@ decodeKey =
                         Decode.succeed MoveUp
 
                     "ArrowDown" ->
-                        Decode.succeed MoveDown
+                        Decode.succeed (MoveDown player)
 
                     _ ->
                         Decode.succeed NoOp
             )
+
+
+moveBySpeed : Speed -> Int
+moveBySpeed speed =
+    case speed of
+        Zero ->
+            0
+
+        One ->
+            3
+
+        Two ->
+            6
+
+        Three ->
+            9
+
+        Four ->
+            12
+
+        Five ->
+            15
+
+        Six ->
+            18
+
+        Seven ->
+            21
+
+        Eight ->
+            24
+
+
+increaseSpeed : Speed -> Speed
+increaseSpeed speed =
+    case speed of
+        Zero ->
+            One
+
+        One ->
+            Two
+
+        Two ->
+            Three
+
+        Three ->
+            Four
+
+        Four ->
+            Five
+
+        Five ->
+            Six
+
+        Six ->
+            Seven
+
+        Seven ->
+            Eight
+
+        Eight ->
+            Eight
 
 
 view : Model -> Browser.Document Msg
@@ -244,10 +316,10 @@ viewPlayer player =
     Html.div
         [ Attrs.css
             [ Css.position Css.absolute
-            , Css.left (Css.px player.x)
-            , Css.top (Css.px player.y)
-            , Css.width (Css.px player.width)
-            , Css.height (Css.px player.height)
+            , Css.left (Css.px (toFloat player.x))
+            , Css.top (Css.px (toFloat player.y))
+            , Css.width (Css.px (toFloat player.width))
+            , Css.height (Css.px (toFloat player.height))
             , Css.backgroundColor (Css.hex "#0000FF")
             ]
         , Attrs.id "platformer-player"
@@ -259,12 +331,13 @@ viewPlatform : Platform -> Html.Html Msg
 viewPlatform platform =
     Html.div
         [ Attrs.css
-            [ Css.width (Css.px platform.width)
-            , Css.height (Css.px platform.height)
-            , Css.top (Css.px platform.y)
-            , Css.left (Css.px platform.x)
+            [ Css.width (Css.px (toFloat platform.width))
+            , Css.height (Css.px (toFloat platform.height))
+            , Css.top (Css.px (toFloat platform.y))
+            , Css.left (Css.px (toFloat platform.x))
             , Css.backgroundColor (Css.hex "#000000")
             , Css.position Css.absolute
+            , Css.overflow Css.hidden
             ]
         , Attrs.id "platformer-platform"
         ]

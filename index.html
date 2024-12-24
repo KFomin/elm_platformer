@@ -5257,27 +5257,30 @@ var $elm$core$Task$perform = F2(
 				A2($elm$core$Task$map, toMessage, task)));
 	});
 var $elm$browser$Browser$application = _Browser_application;
-var $author$project$Main$Down = {$: 'Down'};
 var $author$project$Main$GotViewPort = function (a) {
 	return {$: 'GotViewPort', a: a};
 };
+var $author$project$Main$One = {$: 'One'};
 var $elm$browser$Browser$Dom$getViewport = _Browser_withWindow(_Browser_getViewport);
 var $author$project$Main$init = _Utils_Tuple2(
 	{
 		platforms: _List_fromArray(
 			[
-				{height: 25, width: 1000, x: 0, y: 500}
+				{height: 20, width: 1200, x: 0, y: 500}
 			]),
-		player: {direction: $author$project$Main$Down, height: 20, width: 20, x: 5, y: 5},
+		player: {height: 20, speed: $author$project$Main$One, width: 20, x: 0, y: 0},
 		screenHeight: 0,
 		screenWidth: 0
 	},
 	A2($elm$core$Task$perform, $author$project$Main$GotViewPort, $elm$browser$Browser$Dom$getViewport));
-var $author$project$Main$MoveDown = {$: 'MoveDown'};
+var $author$project$Main$MoveDown = function (a) {
+	return {$: 'MoveDown', a: a};
+};
 var $author$project$Main$UpdateScreenWidth = F2(
 	function (a, b) {
 		return {$: 'UpdateScreenWidth', a: a, b: b};
 	});
+var $author$project$Main$Zero = {$: 'Zero'};
 var $elm$core$Platform$Sub$batch = _Platform_batch;
 var $author$project$Main$MoveLeft = {$: 'MoveLeft'};
 var $author$project$Main$MoveRight = {$: 'MoveRight'};
@@ -5285,23 +5288,26 @@ var $author$project$Main$MoveUp = {$: 'MoveUp'};
 var $elm$json$Json$Decode$andThen = _Json_andThen;
 var $elm$json$Json$Decode$field = _Json_decodeField;
 var $elm$json$Json$Decode$string = _Json_decodeString;
-var $author$project$Main$decodeKey = A2(
-	$elm$json$Json$Decode$andThen,
-	function (key) {
-		switch (key) {
-			case 'ArrowLeft':
-				return $elm$json$Json$Decode$succeed($author$project$Main$MoveLeft);
-			case 'ArrowRight':
-				return $elm$json$Json$Decode$succeed($author$project$Main$MoveRight);
-			case 'ArrowUp':
-				return $elm$json$Json$Decode$succeed($author$project$Main$MoveUp);
-			case 'ArrowDown':
-				return $elm$json$Json$Decode$succeed($author$project$Main$MoveDown);
-			default:
-				return $elm$json$Json$Decode$succeed($author$project$Main$NoOp);
-		}
-	},
-	A2($elm$json$Json$Decode$field, 'key', $elm$json$Json$Decode$string));
+var $author$project$Main$decodeKey = function (player) {
+	return A2(
+		$elm$json$Json$Decode$andThen,
+		function (key) {
+			switch (key) {
+				case 'ArrowLeft':
+					return $elm$json$Json$Decode$succeed($author$project$Main$MoveLeft);
+				case 'ArrowRight':
+					return $elm$json$Json$Decode$succeed($author$project$Main$MoveRight);
+				case 'ArrowUp':
+					return $elm$json$Json$Decode$succeed($author$project$Main$MoveUp);
+				case 'ArrowDown':
+					return $elm$json$Json$Decode$succeed(
+						$author$project$Main$MoveDown(player));
+				default:
+					return $elm$json$Json$Decode$succeed($author$project$Main$NoOp);
+			}
+		},
+		A2($elm$json$Json$Decode$field, 'key', $elm$json$Json$Decode$string));
+};
 var $elm$time$Time$Every = F2(
 	function (a, b) {
 		return {$: 'Every', a: a, b: b};
@@ -5717,6 +5723,7 @@ var $elm$time$Time$every = F2(
 		return $elm$time$Time$subscription(
 			A2($elm$time$Time$Every, interval, tagger));
 	});
+var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
 var $elm$browser$Browser$Events$Document = {$: 'Document'};
 var $elm$browser$Browser$Events$MySub = F3(
 	function (a, b, c) {
@@ -5936,43 +5943,116 @@ var $elm$browser$Browser$Events$onResize = function (func) {
 				A2($elm$json$Json$Decode$field, 'innerHeight', $elm$json$Json$Decode$int))));
 };
 var $author$project$Main$subscriptions = function (_v0) {
+	var player = _v0.player;
+	var platforms = _v0.platforms;
 	return $elm$core$Platform$Sub$batch(
 		_List_fromArray(
 			[
-				$elm$browser$Browser$Events$onKeyDown($author$project$Main$decodeKey),
+				$elm$browser$Browser$Events$onKeyDown(
+				$author$project$Main$decodeKey(player)),
 				$elm$browser$Browser$Events$onResize($author$project$Main$UpdateScreenWidth),
-				A2(
+				_Utils_eq(player.speed, $author$project$Main$Zero) ? $elm$core$Platform$Sub$none : A2(
 				$elm$time$Time$every,
-				100,
+				50,
 				function (_v1) {
-					return $author$project$Main$MoveDown;
+					return $author$project$Main$MoveDown(player);
 				})
 			]));
 };
-var $elm$core$List$any = F2(
-	function (isOkay, list) {
-		any:
-		while (true) {
-			if (!list.b) {
-				return false;
-			} else {
-				var x = list.a;
-				var xs = list.b;
-				if (isOkay(x)) {
-					return true;
-				} else {
-					var $temp$isOkay = isOkay,
-						$temp$list = xs;
-					isOkay = $temp$isOkay;
-					list = $temp$list;
-					continue any;
-				}
-			}
-		}
+var $elm$core$List$filter = F2(
+	function (isGood, list) {
+		return A3(
+			$elm$core$List$foldr,
+			F2(
+				function (x, xs) {
+					return isGood(x) ? A2($elm$core$List$cons, x, xs) : xs;
+				}),
+			_List_Nil,
+			list);
 	});
 var $elm$core$Basics$ge = _Utils_ge;
+var $elm$core$List$head = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return $elm$core$Maybe$Just(x);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$Main$Eight = {$: 'Eight'};
+var $author$project$Main$Five = {$: 'Five'};
+var $author$project$Main$Four = {$: 'Four'};
+var $author$project$Main$Seven = {$: 'Seven'};
+var $author$project$Main$Six = {$: 'Six'};
+var $author$project$Main$Three = {$: 'Three'};
+var $author$project$Main$Two = {$: 'Two'};
+var $author$project$Main$increaseSpeed = function (speed) {
+	switch (speed.$) {
+		case 'Zero':
+			return $author$project$Main$One;
+		case 'One':
+			return $author$project$Main$Two;
+		case 'Two':
+			return $author$project$Main$Three;
+		case 'Three':
+			return $author$project$Main$Four;
+		case 'Four':
+			return $author$project$Main$Five;
+		case 'Five':
+			return $author$project$Main$Six;
+		case 'Six':
+			return $author$project$Main$Seven;
+		case 'Seven':
+			return $author$project$Main$Eight;
+		default:
+			return $author$project$Main$Eight;
+	}
+};
+var $elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return $elm$core$Maybe$Just(
+				f(value));
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
+var $author$project$Main$moveBySpeed = function (speed) {
+	switch (speed.$) {
+		case 'Zero':
+			return 0;
+		case 'One':
+			return 3;
+		case 'Two':
+			return 6;
+		case 'Three':
+			return 9;
+		case 'Four':
+			return 12;
+		case 'Five':
+			return 15;
+		case 'Six':
+			return 18;
+		case 'Seven':
+			return 21;
+		default:
+			return 24;
+	}
+};
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
+var $elm$core$Basics$round = _Basics_round;
+var $elm$core$Maybe$withDefault = F2(
+	function (_default, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return value;
+		} else {
+			return _default;
+		}
+	});
 var $author$project$Main$update = F2(
 	function (msg, model) {
 		switch (msg.$) {
@@ -6022,26 +6102,49 @@ var $author$project$Main$update = F2(
 						}),
 					$elm$core$Platform$Cmd$none);
 			case 'MoveDown':
-				var movePlayerDown = function (player) {
-					return _Utils_update(
-						player,
-						{
-							y: (_Utils_cmp(model.player.y + 5, model.screenHeight - 5) > -1) ? model.player.y : (model.player.y + 5)
-						});
-				};
-				var cantMoveDown = A2(
-					$elm$core$List$any,
+				var player = msg.a;
+				var theYCoordinateToStop = A2(
+					$elm$core$Maybe$map,
 					function (platform) {
-						return ((_Utils_cmp(model.player.x, platform.x + platform.width) < 0) && (_Utils_cmp(model.player.x + model.player.width, platform.x) > 0)) && ((_Utils_cmp(model.player.y, platform.y + platform.height) < 0) && (_Utils_cmp(model.player.y + model.player.height, platform.y) > 0));
+						return platform.y - platform.height;
 					},
-					model.platforms);
-				return cantMoveDown ? _Utils_Tuple2(model, $elm$core$Platform$Cmd$none) : _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{
-							player: movePlayerDown(model.player)
-						}),
-					$elm$core$Platform$Cmd$none);
+					$elm$core$List$head(
+						A2(
+							$elm$core$List$filter,
+							function (platform) {
+								return ((_Utils_cmp(player.x, platform.x + platform.width) < 0) && (_Utils_cmp(player.x + player.width, platform.x) > 0)) && (_Utils_cmp(
+									player.y + $author$project$Main$moveBySpeed(player.speed),
+									platform.y - platform.height) > 0);
+							},
+							model.platforms)));
+				return A2(
+					$elm$core$Maybe$withDefault,
+					_Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								player: _Utils_update(
+									player,
+									{
+										speed: $author$project$Main$increaseSpeed(player.speed),
+										y: player.y + $author$project$Main$moveBySpeed(player.speed)
+									})
+							}),
+						$elm$core$Platform$Cmd$none),
+					A2(
+						$elm$core$Maybe$map,
+						function (y) {
+							return _Utils_Tuple2(
+								_Utils_update(
+									model,
+									{
+										player: _Utils_update(
+											player,
+											{speed: $author$project$Main$Zero, y: y})
+									}),
+								$elm$core$Platform$Cmd$none);
+						},
+						theYCoordinateToStop));
 			case 'NoOp':
 				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 			case 'GotViewPort':
@@ -6049,7 +6152,10 @@ var $author$project$Main$update = F2(
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{screenHeight: viewPort.viewport.height, screenWidth: viewPort.viewport.width}),
+						{
+							screenHeight: $elm$core$Basics$round(viewPort.viewport.height),
+							screenWidth: $elm$core$Basics$round(viewPort.viewport.width)
+						}),
 					$elm$core$Platform$Cmd$none);
 			default:
 				var width = msg.a;
@@ -6071,6 +6177,27 @@ var $elm$virtual_dom$VirtualDom$attribute = F2(
 			_VirtualDom_attribute,
 			_VirtualDom_noOnOrFormAction(key),
 			_VirtualDom_noJavaScriptOrHtmlUri(value));
+	});
+var $elm$core$List$any = F2(
+	function (isOkay, list) {
+		any:
+		while (true) {
+			if (!list.b) {
+				return false;
+			} else {
+				var x = list.a;
+				var xs = list.b;
+				if (isOkay(x)) {
+					return true;
+				} else {
+					var $temp$isOkay = isOkay,
+						$temp$list = xs;
+					isOkay = $temp$isOkay;
+					list = $temp$list;
+					continue any;
+				}
+			}
+		}
 	});
 var $elm$core$Basics$not = _Basics_not;
 var $elm$core$List$all = F2(
@@ -6204,25 +6331,6 @@ var $rtfeldman$elm_css$Css$Structure$compactStylesheet = function (_v0) {
 		namespaces: namespaces
 	};
 };
-var $elm$core$Maybe$map = F2(
-	function (f, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return $elm$core$Maybe$Just(
-				f(value));
-		} else {
-			return $elm$core$Maybe$Nothing;
-		}
-	});
-var $elm$core$Maybe$withDefault = F2(
-	function (_default, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return value;
-		} else {
-			return _default;
-		}
-	});
 var $rtfeldman$elm_css$Css$Structure$Output$charsetToString = function (charset) {
 	return A2(
 		$elm$core$Maybe$withDefault,
@@ -7014,15 +7122,6 @@ var $rtfeldman$elm_css$Hash$fromString = function (str) {
 		_Utils_chr('_'),
 		$rtfeldman$elm_hex$Hex$toString(
 			A2($robinheghan$murmur3$Murmur3$hashString, $rtfeldman$elm_css$Hash$initialSeed, str)));
-};
-var $elm$core$List$head = function (list) {
-	if (list.b) {
-		var x = list.a;
-		var xs = list.b;
-		return $elm$core$Maybe$Just(x);
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
 };
 var $rtfeldman$elm_css$Css$Preprocess$Resolve$last = function (list) {
 	last:
@@ -8808,7 +8907,8 @@ var $author$project$Main$viewPlatform = function (platform) {
 						$rtfeldman$elm_css$Css$px(platform.x)),
 						$rtfeldman$elm_css$Css$backgroundColor(
 						$rtfeldman$elm_css$Css$hex('#000000')),
-						$rtfeldman$elm_css$Css$position($rtfeldman$elm_css$Css$absolute)
+						$rtfeldman$elm_css$Css$position($rtfeldman$elm_css$Css$absolute),
+						$rtfeldman$elm_css$Css$overflow($rtfeldman$elm_css$Css$hidden)
 					])),
 				$rtfeldman$elm_css$Html$Styled$Attributes$id('platformer-platform')
 			]),
